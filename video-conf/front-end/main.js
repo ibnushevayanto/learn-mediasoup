@@ -16,7 +16,10 @@ let consumers = {}; //key off the audioPid
 
 // const socket = io.connect('https://localhost:3031')
 //FOR LOCAL ONLY... no https
-const socket = io.connect("http://192.168.0.16:3031");
+const socket = io("https://192.168.0.16:3031", {
+  rejectUnauthorized: false,
+  transports: ["websocket"],
+});
 socket.on("connect", () => {
   console.log("Connected");
 });

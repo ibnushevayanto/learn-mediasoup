@@ -14,9 +14,9 @@ const key = fs.readFileSync("./config/cert.key");
 const cert = fs.readFileSync("./config/cert.crt");
 const options = { key, cert };
 //use those keys with the https module to have https
-// const httpsServer = https.createServer(options, app);
+const httpsServer = https.createServer(options, app);
 //FOR LOCAL ONlY... non https
-const httpServer = http.createServer(app)
+// const httpServer = http.createServer(app)
 
 const socketio = require("socket.io");
 const mediasoup = require("mediasoup");
@@ -30,10 +30,10 @@ const Room = require("./classes/Room");
 
 //set up the socketio server, listening by way of our express https sever
 // const io = socketio(httpsServer,{
-const io = socketio(httpServer, {
+const io = socketio(httpsServer, {
   cors: {
     origin: "*"
-  },
+  }
 });
 
 //our globals
@@ -262,9 +262,75 @@ io.on("connect", (socket) => {
     await consumerToResume[kind].resume();
     ackCb();
   });
+
+  socket.on("close-all", async (ackCb) => {
+    try {
+      if (!client) {
+        return ackCb("noClient");
+      }
+  
+      if (client.upstreamTransport) {
+        await client.upstreamTransport.close();
+      }
+  
+      if (client.downstreamTransports && client.downstreamTransports.length > 0) {
+        client.downstreamTransports.forEach(transport => {
+          if (transport.transport) {
+            transport.transport.close();
+          }
+        });
+      }
+  
+      if (client.room) {
+        const index = client.room.clients.findIndex(c => c.socket.id === socket.id);
+        if (index !== -1) {
+          client.room.clients.splice(index, 1);
+        }
+      }
+  
+      ackCb("closed");
+    } catch (error) {
+      console.log("Error closing transports:", error);
+      ackCb("closeError");
+    }
+  });
+  
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+    
+    if (client) {
+      if (client.upstreamTransport) {
+        client.upstreamTransport.close();
+      }
+      
+      if (client.downstreamTransports && client.downstreamTransports.length > 0) {
+        client.downstreamTransports.forEach(transport => {
+          if (transport.transport) {
+            transport.transport.close();
+          }
+        });
+      }
+      
+      if (client.room) {
+        const index = client.room.clients.findIndex(c => c.socket.id === socket.id);
+        if (index !== -1) {
+          client.room.clients.splice(index, 1);
+          
+          if (client.room.clients.length === 0) {
+            const roomIndex = rooms.findIndex(r => r.roomName === client.room.roomName);
+            if (roomIndex !== -1) {
+              rooms.splice(roomIndex, 1);
+            }
+          } else {
+            updateActiveSpeakers(client.room, io);
+          }
+        }
+      }
+    }
+  });
 });
 
 console.log("run on " + getLocalIp() + ":" + config.port);
 
-// httpsServer.listen(config.port);
-httpServer.listen(config.port)
+httpsServer.listen(config.port);
+// httpServer.listen(config.port)
