@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- needed by the Metro dev server -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain>localhost</domain>
+    </domain-config>
+
+    <domain-config>
+        <domain>192.168.0.16</domain>
+        <trust-anchors>
+            <certificates src="@raw/cert" />
+        </trust-anchors>
+    </domain-config>
+</network-security-config>
